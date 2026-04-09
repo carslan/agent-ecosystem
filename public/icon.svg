@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <rect width="72" height="72" rx="12" fill="#0a0e17"/>
+  <!-- Central hub -->
+  <circle cx="36" cy="36" r="8" fill="none" stroke="#4FC3F7" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="36" cy="36" r="3" fill="#4FC3F7"/>
+  <!-- Agent nodes -->
+  <circle cx="18" cy="20" r="5" fill="#81C784" opacity="0.9"/>
+  <circle cx="54" cy="20" r="5" fill="#FFB74D" opacity="0.9"/>
+  <circle cx="18" cy="52" r="5" fill="#BA68C8" opacity="0.9"/>
+  <circle cx="54" cy="52" r="5" fill="#E57373" opacity="0.9"/>
+  <circle cx="36" cy="12" r="4" fill="#4DD0E1" opacity="0.9"/>
+  <circle cx="36" cy="60" r="4" fill="#AED581" opacity="0.9"/>
+  <!-- Connection arcs -->
+  <line x1="18" y1="20" x2="36" y2="36" stroke="#81C784" stroke-width="1" opacity="0.4"/>
+  <line x1="54" y1="20" x2="36" y2="36" stroke="#FFB74D" stroke-width="1" opacity="0.4"/>
+  <line x1="18" y1="52" x2="36" y2="36" stroke="#BA68C8" stroke-width="1" opacity="0.4"/>
+  <line x1="54" y1="52" x2="36" y2="36" stroke="#E57373" stroke-width="1" opacity="0.4"/>
+  <line x1="36" y1="12" x2="36" y2="36" stroke="#4DD0E1" stroke-width="1" opacity="0.4"/>
+  <line x1="36" y1="60" x2="36" y2="36" stroke="#AED581" stroke-width="1" opacity="0.4"/>
+  <!-- Cross connections -->
+  <line x1="18" y1="20" x2="54" y2="52" stroke="#4FC3F7" stroke-width="0.5" opacity="0.2" stroke-dasharray="2,2"/>
+  <line x1="54" y1="20" x2="18" y2="52" stroke="#4FC3F7" stroke-width="0.5" opacity="0.2" stroke-dasharray="2,2"/>
+</svg>

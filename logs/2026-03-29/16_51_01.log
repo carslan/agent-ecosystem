@@ -1,0 +1,44 @@
+2026-03-29 16:51:01.252 | INFO     | database:init_db:163 - Database initialized at /home/che/LocalAppStore/Apps/agent-ecosystem/data/ecosystem.db
+2026-03-29 16:51:01.252 | INFO     | database:init_db:163 - Database initialized at /home/che/LocalAppStore/Apps/agent-ecosystem/data/ecosystem.db
+2026-03-29 16:51:01.253 | INFO     | server:lifespan:57 - Agent Ecosystem starting on 0.0.0.0:4019
+2026-03-29 16:51:01.253 | INFO     | server:lifespan:57 - Agent Ecosystem starting on 0.0.0.0:4019
+2026-03-29 16:51:01.253 | INFO     | agent_runtime:start:137 - Autonomous mode disabled — runtime idle (set AE_AUTONOMOUS=true to enable)
+2026-03-29 16:51:01.253 | INFO     | agent_runtime:start:137 - Autonomous mode disabled — runtime idle (set AE_AUTONOMOUS=true to enable)
+2026-03-29 22:51:01.255 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-29 22:51:01.255 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 04:51:01.258 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 04:51:01.258 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 10:51:01.261 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 10:51:01.261 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 16:51:01.264 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 16:51:01.264 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 22:51:01.268 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-30 22:51:01.268 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 04:51:01.271 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 04:51:01.271 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 10:51:01.274 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 10:51:01.274 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 16:51:01.277 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 16:51:01.277 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 22:51:01.280 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-03-31 22:51:01.280 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 04:51:01.281 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 04:51:01.281 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 10:51:01.282 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 10:51:01.282 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 16:51:01.284 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 16:51:01.284 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 22:51:01.288 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-01 22:51:01.288 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 04:51:01.289 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 04:51:01.289 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 10:51:01.291 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 10:51:01.291 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 16:51:01.294 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 16:51:01.294 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 22:51:01.296 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-02 22:51:01.296 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-03 04:51:01.300 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-03 04:51:01.300 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-03 10:51:01.302 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents
+2026-04-03 10:51:01.302 | INFO     | database:apply_reputation_decay:926 - Reputation decay applied to 0 agents

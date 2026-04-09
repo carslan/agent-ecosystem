@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Ecosystem</title>
+<style>
+:root {
+    --bg: #0a0e17;
+    --bg2: #111827;
+    --bg3: #1a2236;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #2a3548;
+    --accent: #4FC3F7;
+    --green: #81C784;
+    --orange: #FFB74D;
+    --red: #E57373;
+    --purple: #BA68C8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+
+/* Layout */
+.layout { display: flex; height: 100vh; }
+.canvas-panel { flex: 1; position: relative; min-width: 0; }
+.dashboard-panel { width: 420px; display: flex; flex-direction: column; background: var(--bg2); border-left: 1px solid var(--border); }
+
+/* Stats bar */
+.stats-bar { display: flex; gap: 4px; padding: 8px 12px; background: var(--bg3); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.stat-item { font-size: 11px; color: var(--text2); padding: 3px 8px; background: var(--bg); border-radius: 4px; }
+.stat-item span { color: var(--accent); font-weight: 600; }
+
+/* Canvas overlay */
+.canvas-overlay { position: absolute; top: 8px; left: 12px; z-index: 10; }
+.canvas-title { font-size: 14px; font-weight: 600; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
+.canvas-subtitle { font-size: 11px; color: var(--text2); opacity: 0.6; }
+canvas { display: block; background: var(--bg); }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Tab content */
+.tab-content { flex: 1; overflow-y: auto; padding: 8px; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* Cards */
+.card { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 6px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--accent); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.card-title { font-size: 13px; font-weight: 600; }
+.card-meta { font-size: 10px; color: var(--text2); }
+
+/* Status badge */
+.badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.badge-online { background: rgba(129,199,132,0.2); color: var(--green); }
+.badge-offline { background: rgba(148,163,184,0.2); color: var(--text2); }
+.badge-busy { background: rgba(255,183,77,0.2); color: var(--orange); }
+.badge-requested { background: rgba(79,195,247,0.2); color: var(--accent); }
+.badge-accepted, .badge-in_progress { background: rgba(255,183,77,0.2); color: var(--orange); }
+.badge-delivered { background: rgba(129,199,132,0.2); color: var(--green); }
+.badge-rated { background: rgba(186,104,200,0.2); color: var(--purple); }
+.badge-rejected, .badge-cancelled { background: rgba(229,115,115,0.2); color: var(--red); }
+
+/* Pills */
+.pills { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.pill { padding: 1px 6px; border-radius: 3px; font-size: 10px; background: rgba(79,195,247,0.15); color: var(--accent); }
+
+/* Rating stars */
+.stars { color: var(--orange); font-size: 12px; letter-spacing: 1px; }
+
+/* Event feed */
+.event-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(42,53,72,0.5); font-size: 11px; align-items: flex-start; }
+.event-time { color: var(--text2); font-size: 10px; white-space: nowrap; min-width: 55px; }
+.event-icon { font-size: 12px; min-width: 16px; text-align: center; }
+.event-text { color: var(--text); flex: 1; word-break: break-word; }
+
+/* Leaderboard */
+.lb-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid rgba(42,53,72,0.5); }
+.lb-rank { font-size: 16px; font-weight: 700; color: var(--text2); min-width: 24px; text-align: center; }
+.lb-rank.gold { color: #FFD700; }
+.lb-rank.silver { color: #C0C0C0; }
+.lb-rank.bronze { color: #CD7F32; }
+.lb-info { flex: 1; }
+.lb-name { font-size: 13px; font-weight: 600; }
+.lb-domain { font-size: 10px; color: var(--text2); }
+.lb-score { font-size: 14px; font-weight: 700; color: var(--orange); }
+
+/* Section headers */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.section-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="layout">
+    <!-- Canvas Panel -->
+    <div class="canvas-panel">
+        <div class="canvas-overlay">
+            <div class="canvas-title">Agent Ecosystem</div>
+            <div class="canvas-subtitle" id="viewLabel">Network View</div>
+            <div style="margin-top:6px;display:flex;gap:6px">
+                <button onclick="toggleView()" id="viewToggle" style="padding:4px 10px;font-size:10px;border:1px solid var(--border);background:var(--bg3);color:var(--accent);border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">World View</button>
+                <a href="/3d" style="padding:4px 10px;font-size:10px;border:1px solid rgba(186,104,200,0.4);background:var(--bg3);color:var(--purple);border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;text-decoration:none">3D View</a>
+            </div>
+        </div>
+        <canvas id="world"></canvas>
+    </div>
+
+    <!-- Dashboard Panel -->
+    <div class="dashboard-panel">
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">Agents: <span id="statAgents">0</span></div>
+            <div class="stat-item">Online: <span id="statOnline">0</span></div>
+            <div class="stat-item">Tasks: <span id="statTasks">0</span></div>
+            <div class="stat-item">Active: <span id="statActive">0</span></div>
+            <div class="stat-item">Rated: <span id="statRated">0</span></div>
+            <div class="stat-item">Avg: <span id="statAvg">0.0</span></div>
+        </div>
+        <div class="tabs">
+            <div class="tab active" data-tab="registry">Agents</div>
+            <div class="tab" data-tab="tasks">Tasks</div>
+            <div class="tab" data-tab="leaderboard">Board</div>
+            <div class="tab" data-tab="timeline">History</div>
+            <div class="tab" data-tab="events">Events</div>
+        </div>
+        <div class="tab-content">
+            <!-- Registry Tab -->
+            <div class="tab-pane active" id="tab-registry">
+                <div class="section-header">
+                    <span class="section-title">Agent Registry</span>
+                </div>
+                <div id="agentList"></div>
+            </div>
+            <!-- Tasks Tab -->
+            <div class="tab-pane" id="tab-tasks">
+                <div class="section-header">
+                    <span class="section-title">Task Queue</span>
+                </div>
+                <div id="taskList"></div>
+            </div>
+            <!-- Leaderboard Tab -->
+            <div class="tab-pane" id="tab-leaderboard">
+                <div class="section-header">
+                    <span class="section-title">Leaderboard</span>
+                </div>
+                <div id="leaderboardList"></div>
+            </div>
+            <!-- Timeline Tab -->
+            <div class="tab-pane" id="tab-timeline">
+                <div class="section-header">
+                    <span class="section-title">Task Timeline</span>
+                </div>
+                <div id="timelineList"></div>
+            </div>
+            <!-- Events Tab -->
+            <div class="tab-pane" id="tab-events">
+                <div class="section-header">
+                    <span class="section-title">Live Events</span>
+                </div>
+                <div id="eventList"></div>
+            </div>
+        </div>
+        <!-- Agent Profile Overlay -->
+        <div id="profileOverlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.8);z-index:50;overflow-y:auto;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <span class="section-title" id="profileName" style="font-size:14px"></span>
+                <span style="cursor:pointer;color:var(--text2);font-size:18px" onclick="hideProfile()">&times;</span>
+            </div>
+            <div id="profileContent"></div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+const state = {
+    agents: [],
+    tasks: [],
+    events: [],
+    stats: {},
+    agentMap: {},        // id -> agent
+    agentPositions: {},  // id -> {x, y, vx, vy, tx, ty}
+    arcs: [],            // active task arcs for animation
+    particles: [],       // particles along arcs
+    ripples: [],         // broadcast ripples
+    sparkles: [],        // rating sparkle effects
+    popIns: [],          // new agent pop-in animations
+    domainCenters: {},   // domain -> {x, y}
+    champions: {},       // domain -> agent_id
+    timeline: [],        // task timeline data
+    viewMode: 'network', // 'network' or 'world'
+    emojiBubbles: [],    // floating emoji animations for world view
+    walkTargets: {},     // agent_id -> {tx, ty} walk-to targets
+    chatBubbles: [],     // speech bubbles
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+    const panel = document.querySelector('.canvas-panel');
+    W = panel.clientWidth;
+    H = panel.clientHeight;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    computeDomainCenters();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ═══════════════════════════════════════════════════════════════
+// DOMAIN CLUSTERING
+// ═══════════════════════════════════════════════════════════════
+function computeDomainCenters() {
+    const domains = new Set();
+    state.agents.forEach(a => (a.domain_tags || []).forEach(d => domains.add(d)));
+    const arr = [...domains];
+    const cx = W / 2, cy = H / 2;
+    const radius = Math.min(W, H) * 0.3;
+    state.domainCenters = {};
+    arr.forEach((d, i) => {
+        const angle = (i / Math.max(arr.length, 1)) * Math.PI * 2 - Math.PI / 2;
+        state.domainCenters[d] = { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+    });
+}
+
+function getAgentTarget(agent) {
+    const tags = agent.domain_tags || [];
+    if (tags.length > 0 && state.domainCenters[tags[0]]) {
+        const c = state.domainCenters[tags[0]];
+        // Offset within cluster
+        const hash = hashStr(agent.id);
+        const angle = (hash % 360) * Math.PI / 180;
+        const r = 30 + (hash % 60);
+        return { x: c.x + Math.cos(angle) * r, y: c.y + Math.sin(angle) * r };
+    }
+    return { x: W / 2 + (Math.random() - 0.5) * 200, y: H / 2 + (Math.random() - 0.5) * 200 };
+}
+
+function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORCE SIMULATION
+// ═══════════════════════════════════════════════════════════════
+function updatePositions() {
+    const damping = 0.92;
+    const attractStrength = 0.015;
+    const repelStrength = 800;
+    const agents = state.agents;
+
+    agents.forEach(a => {
+        let pos = state.agentPositions[a.id];
+        if (!pos) {
+            const t = getAgentTarget(a);
+            pos = { x: W / 2, y: H / 2, vx: 0, vy: 0, tx: t.x, ty: t.y };
+            state.agentPositions[a.id] = pos;
+        }
+        // Attract to target
+        pos.vx += (pos.tx - pos.x) * attractStrength;
+        pos.vy += (pos.ty - pos.y) * attractStrength;
+    });
+
+    // Repel from each other
+    for (let i = 0; i < agents.length; i++) {
+        for (let j = i + 1; j < agents.length; j++) {
+            const a = state.agentPositions[agents[i].id];
+            const b = state.agentPositions[agents[j].id];
+            if (!a || !b) continue;
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const d2 = dx * dx + dy * dy + 1;
+            if (d2 < 10000) {
+                const f = repelStrength / d2;
+                a.vx += dx * f; a.vy += dy * f;
+                b.vx -= dx * f; b.vy -= dy * f;
+            }
+        }
+    }
+
+    // Apply velocity + damping
+    agents.forEach(a => {
+        const pos = state.agentPositions[a.id];
+        if (!pos) return;
+        pos.vx *= damping;
+        pos.vy *= damping;
+        pos.x += pos.vx;
+        pos.y += pos.vy;
+        // Keep in bounds
+        pos.x = Math.max(30, Math.min(W - 30, pos.x));
+        pos.y = Math.max(30, Math.min(H - 30, pos.y));
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════
+let frame = 0;
+const now = () => performance.now();
+
+function render() {
+    frame++;
+    ctx.clearRect(0, 0, W, H);
+
+    if (state.viewMode === 'world') {
+        renderWorldView();
+    } else {
+        // Background grid
+        drawGrid();
+        drawDomainLabels();
+        updatePositions();
+        drawArcs();
+        drawRipples();
+        drawAgents();
+        drawSparkles();
+    }
+
+    requestAnimationFrame(render);
+}
+
+function toggleView() {
+    state.viewMode = state.viewMode === 'network' ? 'world' : 'network';
+    document.getElementById('viewToggle').textContent = state.viewMode === 'network' ? 'Switch to World View' : 'Switch to Network View';
+    document.getElementById('viewLabel').textContent = state.viewMode === 'network' ? 'Network View' : 'World View';
+    if (state.viewMode === 'world') initWorldPositions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WORLD VIEW — Little humanoid agents in an animated world
+// ═══════════════════════════════════════════════════════════════
+const GROUND_Y_RATIO = 0.78; // ground line at 78% of canvas height
+const WORLD_ZONES = {};      // domain -> {x, y, w, h, color, label, icon}
+
+function initWorldPositions() {
+    // Create domain zones spread across the world
+    const domains = new Set();
+    state.agents.forEach(a => (a.domain_tags || []).forEach(d => domains.add(d)));
+    const arr = [...domains];
+    const zoneW = Math.max(120, (W - 40) / Math.max(arr.length, 1));
+    const groundY = H * GROUND_Y_RATIO;
+
+    const zoneIcons = {
+        research: '\u{1F4DA}', strategy: '\u{1F3AF}', engineering: '\u{2699}\u{FE0F}', devops: '\u{1F680}',
+        data: '\u{1F4CA}', finance: '\u{1F4B0}', nlp: '\u{1F4AC}', content: '\u{270D}\u{FE0F}',
+        security: '\u{1F6E1}\u{FE0F}', compliance: '\u{2696}\u{FE0F}', design: '\u{1F3A8}', frontend: '\u{1F5BC}\u{FE0F}',
+        infrastructure: '\u{1F3D7}\u{FE0F}', biotech: '\u{1F9EC}',
+    };
+    const zoneColors = ['#1a3a5c', '#1a4a3c', '#3a1a4c', '#4a3a1c', '#1a3c4a', '#3c1a2a', '#2a3a1a', '#1a2a4c'];
+
+    arr.forEach((d, i) => {
+        const x = 20 + i * zoneW;
+        WORLD_ZONES[d] = {
+            x: x, y: groundY - 80, w: zoneW - 10, h: 80,
+            color: zoneColors[i % zoneColors.length],
+            label: d, icon: zoneIcons[d] || '\u{1F3E2}'
+        };
+    });
+
+    // Position agents on the ground within their zone
+    state.agents.forEach(a => {
+        const tag = (a.domain_tags || [])[0];
+        const zone = WORLD_ZONES[tag];
+        if (zone) {
+            const hash = hashStr(a.id);
+            const ax = zone.x + 15 + (hash % Math.max(1, zone.w - 30));
+            const ay = H * GROUND_Y_RATIO - 16;
+            if (!state.agentPositions[a.id]) {
+                state.agentPositions[a.id] = { x: ax, y: ay, vx: 0, vy: 0, tx: ax, ty: ay };
+            } else {
+                state.agentPositions[a.id].tx = ax;
+                state.agentPositions[a.id].ty = ay;
+            }
+        }
+    });
+}
+
+function renderWorldView() {
+    const t = now();
+    const groundY = H * GROUND_Y_RATIO;
+
+    // Sky gradient
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, '#0a1628');
+    skyGrad.addColorStop(0.5, '#0f2040');
+    skyGrad.addColorStop(1, '#162848');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, groundY);
+
+    // Stars
+    for (let i = 0; i < 60; i++) {
+        const sx = (hashStr('s' + i) % W);
+        const sy = (hashStr('t' + i) % (groundY * 0.7));
+        const brightness = 0.3 + Math.sin(t / 1000 + i) * 0.2;
+        ctx.fillStyle = `rgba(255,255,255,${brightness})`;
+        ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+
+    // Ground
+    const groundGrad = ctx.createLinearGradient(0, groundY, 0, H);
+    groundGrad.addColorStop(0, '#1a3a2a');
+    groundGrad.addColorStop(0.3, '#152e22');
+    groundGrad.addColorStop(1, '#0a1a12');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, groundY, W, H - groundY);
+
+    // Ground line
+    ctx.strokeStyle = '#2a5a3a';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(W, groundY); ctx.stroke();
+
+    // Grass tufts
+    ctx.strokeStyle = '#3a7a4a';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 15) {
+        const h = 4 + Math.sin(x * 0.3 + t / 500) * 2;
+        ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x - 2, groundY - h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x + 3, groundY - h + 1); ctx.stroke();
+    }
+
+    // Domain zone buildings
+    Object.values(WORLD_ZONES).forEach(zone => {
+        // Building body
+        ctx.fillStyle = zone.color;
+        ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(zone.x, zone.y, zone.w, zone.h);
+
+        // Roof
+        ctx.fillStyle = zone.color;
+        ctx.beginPath();
+        ctx.moveTo(zone.x - 5, zone.y);
+        ctx.lineTo(zone.x + zone.w / 2, zone.y - 20);
+        ctx.lineTo(zone.x + zone.w + 5, zone.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Windows (little glowing squares)
+        const winCols = Math.floor(zone.w / 20);
+        for (let r = 0; r < 2; r++) {
+            for (let c = 0; c < winCols; c++) {
+                const wx = zone.x + 8 + c * 20;
+                const wy = zone.y + 12 + r * 28;
+                const lit = Math.sin(t / 2000 + hashStr(zone.label + c + r)) > -0.3;
+                ctx.fillStyle = lit ? 'rgba(255,220,100,0.6)' : 'rgba(50,60,80,0.5)';
+                ctx.fillRect(wx, wy, 10, 12);
+            }
+        }
+
+        // Zone icon + label
+        ctx.font = '18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(zone.icon, zone.x + zone.w / 2, zone.y - 26);
+        ctx.font = '600 9px system-ui';
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillText(zone.label.toUpperCase(), zone.x + zone.w / 2, zone.y + zone.h + 14);
+    });
+
+    // Move agents toward targets (smooth walk)
+    state.agents.forEach(a => {
+        const pos = state.agentPositions[a.id];
+        if (!pos) return;
+        const dx = pos.tx - pos.x;
+        const dy = pos.ty - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 1) {
+            const speed = Math.min(dist, 1.5);
+            pos.x += (dx / dist) * speed;
+            pos.y += (dy / dist) * speed;
+            pos._walking = true;
+        } else {
+            pos._walking = false;
+        }
+    });
+
+    // Draw task connections (ropes/lines between agents)
+    const activeStatuses = new Set(['accepted', 'in_progress', 'delivered']);
+    state.tasks.forEach(task => {
+        if (!activeStatuses.has(task.status)) return;
+        const from = state.agentPositions[task.requester_id];
+        const to = state.agentPositions[task.assignee_id];
+        if (!from || !to) return;
+        ctx.strokeStyle = task.status === 'delivered' ? '#81C784' : task.status === 'in_progress' ? '#FFB74D' : '#4FC3F7';
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(from.x, from.y - 20); ctx.lineTo(to.x, to.y - 20); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+    });
+
+    // Draw agents as little people
+    state.agents.forEach(a => drawWorldAgent(a, t));
+
+    // Draw emoji bubbles
+    drawEmojiBubbles(t);
+
+    // Draw chat bubbles
+    drawChatBubbles(t);
+
+    // Draw sparkles in world mode
+    drawSparkles();
+}
+
+function drawWorldAgent(a, t) {
+    const pos = state.agentPositions[a.id];
+    if (!pos) return;
+    const x = pos.x, y = pos.y;
+    const isChampion = Object.values(state.champions).includes(a.id);
+
+    // Walk bob animation
+    const walkBob = pos._walking ? Math.sin(t / 100) * 2 : 0;
+    const armSwing = pos._walking ? Math.sin(t / 120) * 0.4 : 0;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const bodyY = y - 8 + walkBob;
+    const headY = bodyY - 14;
+    const color = a.status === 'offline' ? '#555' : a.color;
+
+    // Legs
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    const legSpread = pos._walking ? Math.sin(t / 100) * 4 : 0;
+    ctx.beginPath(); ctx.moveTo(x - 2, bodyY + 4); ctx.lineTo(x - 3 - legSpread, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 2, bodyY + 4); ctx.lineTo(x + 3 + legSpread, y); ctx.stroke();
+
+    // Body
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x - 5, bodyY - 6, 10, 14, 3);
+    ctx.fill();
+
+    // Arms
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 5, bodyY - 2); ctx.lineTo(x - 10, bodyY + 4 + Math.sin(armSwing + t / 800) * 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + 5, bodyY - 2); ctx.lineTo(x + 10, bodyY + 4 - Math.sin(armSwing + t / 800) * 3); ctx.stroke();
+
+    // Head
+    ctx.fillStyle = '#F5DEB3'; // skin
+    ctx.beginPath(); ctx.arc(x, headY, 6, 0, Math.PI * 2); ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x - 3, headY - 1, 2, 2);
+    ctx.fillRect(x + 1, headY - 1, 2, 2);
+
+    // Mouth (smile if online, flat if offline)
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (a.status === 'offline') {
+        ctx.moveTo(x - 2, headY + 3); ctx.lineTo(x + 2, headY + 3);
+    } else {
+        ctx.arc(x, headY + 2, 2, 0, Math.PI);
+    }
+    ctx.stroke();
+
+    // Hair (color = agent color)
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, headY - 3, 6, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Busy indicator — spinning wrench above head
+    if (a.status === 'busy') {
+        ctx.font = '10px system-ui';
+        ctx.textAlign = 'center';
+        const busyEmoji = ['\u{2699}\u{FE0F}', '\u{1F528}', '\u{26A1}'][Math.floor(t / 500) % 3];
+        ctx.fillText(busyEmoji, x, headY - 14);
+    }
+
+    // Champion crown
+    if (isChampion) {
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u{1F451}', x, headY - 12);
+    }
+
+    // Name tag
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x - 18, y + 4, 36, 12);
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 8px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(a.name.slice(0, 7), x, y + 5);
+
+    // Rating badge
+    if ((a.rating_avg || 0) > 0) {
+        ctx.fillStyle = 'rgba(255,183,77,0.8)';
+        ctx.font = '8px system-ui';
+        ctx.fillText('\u{2B50}' + a.rating_avg.toFixed(1), x, y + 17);
+    }
+}
+
+function drawEmojiBubbles(t) {
+    state.emojiBubbles = state.emojiBubbles.filter(b => {
+        const age = t - b.born;
+        if (age > 2500) return false;
+        const progress = age / 2500;
+        const floatY = b.y - progress * 40;
+        const alpha = progress < 0.2 ? progress / 0.2 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
+        ctx.globalAlpha = alpha;
+        ctx.font = `${b.size || 20}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.fillText(b.emoji, b.x, floatY);
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+
+function drawChatBubbles(t) {
+    state.chatBubbles = state.chatBubbles.filter(b => {
+        const age = t - b.born;
+        if (age > 4000) return false;
+        const alpha = age < 300 ? age / 300 : age > 3000 ? (4000 - age) / 1000 : 1;
+        const pos = state.agentPositions[b.agentId];
+        if (!pos) return false;
+
+        const bx = pos.x;
+        const by = pos.y - 50;
+        const maxW = 100;
+
+        ctx.globalAlpha = alpha;
+        // Bubble
+        ctx.fillStyle = 'rgba(30,40,60,0.9)';
+        ctx.beginPath();
+        ctx.roundRect(bx - maxW / 2, by - 14, maxW, 20, 6);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Tail
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, by + 6);
+        ctx.lineTo(bx, by + 12);
+        ctx.lineTo(bx + 4, by + 6);
+        ctx.fillStyle = 'rgba(30,40,60,0.9)';
+        ctx.fill();
+        // Text
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.text.slice(0, 18) + (b.text.length > 18 ? '..' : ''), bx, by - 4);
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(42,53,72,0.3)';
+    ctx.lineWidth = 0.5;
+    const step = 40;
+    for (let x = 0; x < W; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+}
+
+function drawDomainLabels() {
+    ctx.font = '600 22px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    Object.entries(state.domainCenters).forEach(([domain, pos]) => {
+        ctx.fillStyle = 'rgba(79,195,247,0.08)';
+        ctx.fillText(domain.toUpperCase(), pos.x, pos.y);
+    });
+}
+
+function drawAgents() {
+    const t = now();
+    state.agents.forEach(a => {
+        const pos = state.agentPositions[a.id];
+        if (!pos) return;
+        const x = pos.x, y = pos.y;
+        const baseR = 14 + Math.min(a.total_tasks || 0, 20) * 0.8;
+
+        // Pulse for online agents
+        let pulseR = 0;
+        if (a.status === 'online') {
+            pulseR = Math.sin(t / 600 + hashStr(a.id)) * 2;
+        }
+        const r = baseR + pulseR;
+
+        // Glow
+        const grad = ctx.createRadialGradient(x, y, r * 0.3, x, y, r * 2.5);
+        grad.addColorStop(0, a.color + '30');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(x, y, r * 2.5, 0, Math.PI * 2); ctx.fill();
+
+        // Body
+        ctx.fillStyle = a.status === 'offline' ? '#333' : a.color + '40';
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+
+        // Border — color by rating
+        const rating = a.rating_avg || 0;
+        let borderColor = '#555';
+        if (rating >= 4) borderColor = '#81C784';
+        else if (rating >= 3) borderColor = '#FFB74D';
+        else if (rating >= 1) borderColor = '#E57373';
+        if (a.status === 'online') borderColor = a.color;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+
+        // Busy spinner
+        if (a.status === 'busy') {
+            ctx.strokeStyle = '#FFB74D';
+            ctx.lineWidth = 2;
+            const startAngle = (t / 300) % (Math.PI * 2);
+            ctx.beginPath(); ctx.arc(x, y, r + 4, startAngle, startAngle + Math.PI * 1.2); ctx.stroke();
+        }
+
+        // Champion crown
+        const isChampion = Object.values(state.champions).includes(a.id);
+        if (isChampion) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = '14px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('\u{1F451}', x, y - r - 2);
+        }
+
+        // Name
+        ctx.fillStyle = a.status === 'offline' ? '#666' : '#e2e8f0';
+        ctx.font = '600 10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(a.name.length > 12 ? a.name.slice(0, 10) + '..' : a.name, x, y + r + 4);
+
+        // Rating
+        if (rating > 0) {
+            ctx.fillStyle = '#FFB74D';
+            ctx.font = '10px system-ui';
+            ctx.fillText('★' + rating.toFixed(1), x, y + r + 16);
+        }
+    });
+}
+
+function drawArcs() {
+    const t = now();
+    state.arcs = state.arcs.filter(arc => {
+        const age = t - arc.born;
+        if (arc.fading && age > arc.fadeDuration) return false;
+
+        const fromPos = state.agentPositions[arc.from];
+        const toPos = state.agentPositions[arc.to];
+        if (!fromPos || !toPos) return true;
+
+        const alpha = arc.fading ? Math.max(0, 1 - (age - arc.fadeStart) / (arc.fadeDuration - arc.fadeStart)) : 1;
+
+        // Bezier control point
+        const mx = (fromPos.x + toPos.x) / 2;
+        const my = (fromPos.y + toPos.y) / 2 - 40;
+
+        // Arc color by status
+        let color = '#4FC3F7'; // requested
+        if (arc.status === 'in_progress') color = '#FFB74D';
+        else if (arc.status === 'delivered') color = '#81C784';
+        else if (arc.status === 'rated') color = '#BA68C8';
+
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.lineWidth = 2;
+        ctx.setLineDash(arc.status === 'requested' ? [4, 4] : []);
+        ctx.beginPath();
+        ctx.moveTo(fromPos.x, fromPos.y);
+        ctx.quadraticCurveTo(mx, my, toPos.x, toPos.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Particle along arc
+        if (!arc.fading) {
+            const p = ((t - arc.born) / 2000) % 1;
+            const pp = arc.status === 'delivered' ? 1 - p : p;
+            const px = (1 - pp) * (1 - pp) * fromPos.x + 2 * (1 - pp) * pp * mx + pp * pp * toPos.x;
+            const py = (1 - pp) * (1 - pp) * fromPos.y + 2 * (1 - pp) * pp * my + pp * pp * toPos.y;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+
+function drawRipples() {
+    const t = now();
+    state.ripples = state.ripples.filter(r => {
+        const age = t - r.born;
+        if (age > 1500) return false;
+        const progress = age / 1500;
+        const radius = progress * 80;
+        const alpha = 1 - progress;
+        ctx.strokeStyle = r.color || '#4FC3F7';
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(r.x, r.y, radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+
+function drawSparkles() {
+    const t = now();
+    state.sparkles = state.sparkles.filter(s => {
+        const age = t - s.born;
+        if (age > 1000) return false;
+        const progress = age / 1000;
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + progress * Math.PI;
+            const dist = 15 + progress * 25;
+            const sx = s.x + Math.cos(angle) * dist;
+            const sy = s.y + Math.sin(angle) * dist;
+            ctx.fillStyle = '#FFD700';
+            ctx.globalAlpha = 1 - progress;
+            ctx.font = '12px system-ui';
+            ctx.fillText('★', sx - 4, sy + 4);
+        }
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════════════════════════════
+const API = '';
+
+async function fetchJSON(url, opts) {
+    const res = await fetch(API + url, opts);
+    return res.json();
+}
+
+async function loadAgents() {
+    state.agents = await fetchJSON('/api/agents');
+    state.agentMap = {};
+    state.agents.forEach(a => state.agentMap[a.id] = a);
+    computeDomainCenters();
+    // Update targets
+    state.agents.forEach(a => {
+        const t = getAgentTarget(a);
+        if (state.agentPositions[a.id]) {
+            state.agentPositions[a.id].tx = t.x;
+            state.agentPositions[a.id].ty = t.y;
+        }
+    });
+    renderAgentList();
+}
+
+async function loadTasks() {
+    state.tasks = await fetchJSON('/api/tasks?limit=100');
+    renderTaskList();
+    updateArcs();
+}
+
+async function loadLeaderboard() {
+    const lb = await fetchJSON('/api/leaderboard?limit=20');
+    renderLeaderboard(lb);
+}
+
+async function loadStats() {
+    state.stats = await fetchJSON('/api/stats');
+    renderStats();
+}
+
+async function loadEvents() {
+    state.events = await fetchJSON('/api/events?limit=100');
+    renderEventList();
+}
+
+async function loadChampions() {
+    const champs = await fetchJSON('/api/champions');
+    state.champions = {};
+    champs.forEach(c => state.champions[c.domain] = c.agent_id);
+}
+
+async function loadTimeline() {
+    state.timeline = await fetchJSON('/api/timeline?limit=100');
+    renderTimeline();
+}
+
+function updateArcs() {
+    // Build arcs from active tasks
+    const activeStatuses = new Set(['requested', 'accepted', 'in_progress', 'delivered']);
+    state.arcs = [];
+    state.tasks.forEach(t => {
+        if (!activeStatuses.has(t.status)) return;
+        if (!t.requester_id) return;
+        const toId = t.assignee_id || t.requester_id;
+        if (t.requester_id === toId && t.status === 'requested') return; // no self-arc on broadcast
+        state.arcs.push({
+            from: t.requester_id,
+            to: toId,
+            status: t.status,
+            taskId: t.id,
+            born: now() - 1000, // already visible
+            fading: t.status === 'rated',
+            fadeStart: 0,
+            fadeDuration: 3000,
+        });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderStats() {
+    const s = state.stats;
+    document.getElementById('statAgents').textContent = s.total_agents || 0;
+    document.getElementById('statOnline').textContent = s.online_agents || 0;
+    document.getElementById('statTasks').textContent = s.total_tasks || 0;
+    document.getElementById('statActive').textContent = s.tasks_in_progress || 0;
+    document.getElementById('statRated').textContent = s.tasks_rated || 0;
+    document.getElementById('statAvg').textContent = (s.avg_rating || 0).toFixed(1);
+}
+
+function renderAgentList() {
+    const el = document.getElementById('agentList');
+    if (!state.agents.length) { el.innerHTML = '<div class="card-meta" style="text-align:center;padding:20px">No agents registered yet</div>'; return; }
+    el.innerHTML = state.agents.map(a => `
+        <div class="card" onclick="showProfile('${a.id}')" style="cursor:pointer" onmouseenter="highlightAgent('${a.id}')" onmouseleave="unhighlightAgent('${a.id}')">
+            <div class="card-header">
+                <span class="card-title" style="color:${a.color}">${esc(a.name)}</span>
+                <span class="badge badge-${a.status}">${a.status}</span>
+            </div>
+            <div class="card-meta">${esc(a.description || '')}</div>
+            <div class="pills">${(a.capabilities||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</div>
+            <div class="pills">${(a.domain_tags||[]).map(d=>`<span class="pill" style="background:rgba(186,104,200,0.15);color:#BA68C8">${esc(d)}</span>`).join('')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+                <span class="stars">${a.rating_avg > 0 ? '★'.repeat(Math.round(a.rating_avg)) + ' ' + a.rating_avg.toFixed(1) : 'No ratings'}</span>
+                <span class="card-meta">${a.total_tasks} tasks</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderTaskList() {
+    const el = document.getElementById('taskList');
+    if (!state.tasks.length) { el.innerHTML = '<div class="card-meta" style="text-align:center;padding:20px">No tasks yet</div>'; return; }
+    el.innerHTML = state.tasks.map(t => {
+        const output = t.output_data || {};
+        const hasDelivery = t.status === 'delivered' || t.status === 'rated';
+        return `
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">${esc(t.title)}</span>
+                <span class="badge badge-${t.status}">${t.status}</span>
+            </div>
+            <div class="card-meta">
+                From: ${esc(t.requester_name||t.requester_id)} → ${t.assignee_name ? esc(t.assignee_name) : 'Pending evaluation...'}
+            </div>
+            ${t.required_capability ? `<div class="pills"><span class="pill">${esc(t.required_capability)}</span></div>` : ''}
+            ${hasDelivery && output.notes ? `<div class="card-meta" style="margin-top:4px;font-style:italic;color:var(--green)">${esc(output.notes.slice(0,120))}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function renderLeaderboard(lb) {
+    const el = document.getElementById('leaderboardList');
+    if (!lb.length) { el.innerHTML = '<div class="card-meta" style="text-align:center;padding:20px">No ratings yet</div>'; return; }
+    el.innerHTML = lb.map((entry, i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        return `
+        <div class="lb-row">
+            <div class="lb-rank ${rankClass}">#${i + 1}</div>
+            <div style="width:8px;height:8px;border-radius:50%;background:${entry.color||'#555'}"></div>
+            <div class="lb-info">
+                <div class="lb-name">${esc(entry.name)}</div>
+                <div class="lb-domain">${entry.total_ratings} ratings · ${entry.total_tasks} tasks</div>
+            </div>
+            <div class="lb-score">★ ${(entry.avg_rating||0).toFixed(1)}</div>
+        </div>`;
+    }).join('');
+}
+
+const EVENT_ICONS = {
+    agent_registered: '🟢', agent_online: '🟢', agent_offline: '⚫', agent_busy: '🟠',
+    agent_deregistered: '🔴', task_requested: '📋', task_accepted: '✅', task_rejected: '❌',
+    task_evaluating: '🔍', task_in_progress: '⚙️', task_delivered: '📦', task_rated: '⭐',
+    task_cancelled: '🚫', subtask_created: '📎', offer_made: '🤝', message_sent: '💬',
+    capability_learned: '🧠',
+};
+
+function renderEventList() {
+    const el = document.getElementById('eventList');
+    el.innerHTML = state.events.map(e => {
+        const time = e.created_at ? e.created_at.split('T')[1]?.slice(0, 8) || '' : '';
+        const icon = EVENT_ICONS[e.event_type] || '📌';
+        const payload = e.payload || {};
+        let text = e.event_type.replace(/_/g, ' ');
+        if (payload.agent_name) text += ` — ${payload.agent_name}`;
+        else if (payload.name) text += ` — ${payload.name}`;
+        if (payload.title) text += `: "${payload.title.slice(0,40)}"`;
+        if (payload.reason) text += ` (${payload.reason.slice(0,60)})`;
+        if (payload.score) text += ` — ★${payload.score}`;
+        if (payload.feedback) text += ` "${payload.feedback.slice(0,80)}"`;
+        return `<div class="event-row"><span class="event-time">${time}</span><span class="event-icon">${icon}</span><span class="event-text">${esc(text)}</span></div>`;
+    }).join('');
+}
+
+function renderStats() {
+    const s = state.stats;
+    document.getElementById('statAgents').textContent = s.total_agents || 0;
+    document.getElementById('statOnline').textContent = s.online_agents || 0;
+    document.getElementById('statTasks').textContent = s.total_tasks || 0;
+    document.getElementById('statActive').textContent = s.tasks_in_progress || 0;
+    document.getElementById('statRated').textContent = s.tasks_rated || 0;
+    document.getElementById('statAvg').textContent = (s.avg_rating || 0).toFixed(1);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SSE — LIVE EVENTS
+// ═══════════════════════════════════════════════════════════════
+let lastEventId = 0;
+
+function connectSSE() {
+    const es = new EventSource(`/api/events/stream?last_event_id=${lastEventId}`);
+
+    es.onmessage = () => {}; // keepalive
+
+    const handlers = [
+        'agent_registered', 'agent_online', 'agent_offline', 'agent_busy', 'agent_deregistered',
+        'task_requested', 'task_evaluating', 'task_accepted', 'task_rejected', 'task_in_progress', 'task_delivered', 'task_rated',
+        'task_cancelled', 'subtask_created', 'offer_made', 'message_sent', 'capability_learned'
+    ];
+
+    handlers.forEach(type => {
+        es.addEventListener(type, (e) => {
+            const data = JSON.parse(e.data);
+            lastEventId = data.id;
+            handleEvent(type, data);
+        });
+    });
+
+    es.onerror = () => {
+        es.close();
+        setTimeout(connectSSE, 3000);
+    };
+}
+
+function handleEvent(type, data) {
+    const payload = data.payload || {};
+
+    if (type === 'agent_registered') {
+        loadAgents();
+        // Pop-in animation
+        setTimeout(() => {
+            const pos = state.agentPositions[data.agent_id];
+            if (pos) {
+                state.ripples.push({ x: pos.x, y: pos.y, born: now(), color: payload.color || '#4FC3F7' });
+            }
+        }, 500);
+    } else if (type.startsWith('agent_')) {
+        loadAgents();
+    } else if (type === 'task_evaluating') {
+        loadAgents();
+        // Thinking ripple on evaluating agent
+        const evalPos = state.agentPositions[data.agent_id];
+        if (evalPos) state.ripples.push({ x: evalPos.x, y: evalPos.y, born: now(), color: '#FFB74D' });
+    } else if (type === 'task_requested') {
+        loadTasks();
+        loadStats();
+        // Broadcast ripple from requester
+        const pos = state.agentPositions[data.agent_id];
+        if (pos) state.ripples.push({ x: pos.x, y: pos.y, born: now(), color: '#4FC3F7' });
+    } else if (type === 'task_rated') {
+        loadTasks();
+        loadStats();
+        loadLeaderboard();
+        loadAgents();
+        // Sparkle on rated agent
+        const pos = state.agentPositions[data.agent_id];
+        if (pos) state.sparkles.push({ x: pos.x, y: pos.y, born: now() });
+    } else if (type === 'task_rejected') {
+        loadTasks();
+        loadStats();
+        loadAgents();
+        // Red flash on rejecting agent
+        const rejPos = state.agentPositions[data.agent_id];
+        if (rejPos) state.ripples.push({ x: rejPos.x, y: rejPos.y, born: now(), color: '#E57373' });
+    } else if (type === 'capability_learned') {
+        loadAgents();
+        // Green sparkle for learning
+        const learnPos = state.agentPositions[data.agent_id];
+        if (learnPos) state.sparkles.push({ x: learnPos.x, y: learnPos.y, born: now() });
+    } else if (type === 'message_sent') {
+        // subtle — no heavy reload
+    } else if (type.startsWith('task_')) {
+        loadTasks();
+        loadStats();
+        loadChampions();
+    } else if (type === 'offer_made') {
+        loadTasks();
+    }
+
+    // World view: spawn emoji bubbles + agent interactions
+    if (state.viewMode === 'world' && data.agent_id) {
+        const wpos = state.agentPositions[data.agent_id];
+        if (wpos) {
+            const WORLD_EMOJIS = {
+                agent_registered: '\u{1F44B}', task_requested: '\u{1F4CB}', task_evaluating: '\u{1F914}',
+                task_accepted: '\u{2705}', task_rejected: '\u{274C}', task_in_progress: '\u{2699}\u{FE0F}',
+                task_delivered: '\u{1F4E6}', task_rated: '\u{2B50}', message_sent: '\u{1F4AC}',
+                capability_learned: '\u{1F9E0}', task_cancelled: '\u{1F6AB}', subtask_created: '\u{1F4CE}',
+                offer_made: '\u{1F91D}',
+            };
+            const emoji = WORLD_EMOJIS[type];
+            if (emoji) {
+                state.emojiBubbles.push({
+                    x: wpos.x + (Math.random() - 0.5) * 10,
+                    y: wpos.y - 30,
+                    emoji, born: now(), size: 18
+                });
+            }
+            // For task events involving two agents, make them walk toward each other
+            if (data.task_id && type === 'task_accepted') {
+                const task = state.tasks.find(t => t.id === data.task_id);
+                if (task) {
+                    const fromPos = state.agentPositions[task.requester_id];
+                    const toPos = state.agentPositions[task.assignee_id || data.agent_id];
+                    if (fromPos && toPos) {
+                        const meetX = (fromPos.tx + toPos.tx) / 2;
+                        fromPos.tx = meetX - 15;
+                        toPos.tx = meetX + 15;
+                        // They'll walk back after the task completes
+                    }
+                }
+            }
+            if (type === 'task_rated' || type === 'task_rejected') {
+                // Return to home zone
+                setTimeout(() => {
+                    if (state.viewMode === 'world') initWorldPositions();
+                }, 2000);
+            }
+        }
+        // Chat bubble for messages
+        if (type === 'message_sent' && payload.content) {
+            state.chatBubbles.push({
+                agentId: data.agent_id,
+                text: payload.content,
+                born: now(),
+            });
+        }
+    }
+
+    // Add to events feed
+    state.events.unshift(data);
+    if (state.events.length > 100) state.events.pop();
+    renderEventList();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════════════════════════════
+function highlightAgent(id) {
+    const pos = state.agentPositions[id];
+    if (pos) state.ripples.push({ x: pos.x, y: pos.y, born: now(), color: '#fff' });
+}
+function unhighlightAgent(id) {}
+
+// ═══════════════════════════════════════════════════════════════
+// TIMELINE
+// ═══════════════════════════════════════════════════════════════
+function renderTimeline() {
+    const el = document.getElementById('timelineList');
+    if (!state.timeline.length) { el.innerHTML = '<div class="card-meta" style="text-align:center;padding:20px">No task history yet</div>'; return; }
+    el.innerHTML = state.timeline.map(t => {
+        const times = [];
+        if (t.requested_at) times.push(`<span style="color:var(--accent)">Created ${t.requested_at.split('T')[1]?.slice(0,5)||''}</span>`);
+        if (t.accepted_at) times.push(`<span style="color:var(--orange)">Accepted ${t.accepted_at.split('T')[1]?.slice(0,5)||''}</span>`);
+        if (t.started_at) times.push(`<span style="color:var(--orange)">Started ${t.started_at.split('T')[1]?.slice(0,5)||''}</span>`);
+        if (t.delivered_at) times.push(`<span style="color:var(--green)">Delivered ${t.delivered_at.split('T')[1]?.slice(0,5)||''}</span>`);
+        if (t.rated_at) times.push(`<span style="color:var(--purple)">Rated ${t.rated_at.split('T')[1]?.slice(0,5)||''} ★${(t.rating_score||0).toFixed(1)}</span>`);
+        const feedback = t.rating_feedback ? `<div class="card-meta" style="font-style:italic;margin-top:2px">"${esc(t.rating_feedback.slice(0,100))}"</div>` : '';
+        return `
+        <div class="card" style="padding:8px">
+            <div class="card-header">
+                <span class="card-title" style="font-size:12px">${esc(t.title)}</span>
+                <span class="badge badge-${t.status}">${t.status}</span>
+            </div>
+            <div class="card-meta">${esc(t.requester_name||'')} → ${esc(t.assignee_name||'?')}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;font-size:10px">${times.join(' → ')}</div>
+            ${feedback}
+        </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT PROFILE
+// ═══════════════════════════════════════════════════════════════
+async function showProfile(agentId) {
+    const profile = await fetchJSON(`/api/agents/${agentId}/profile`);
+    if (!profile) return;
+    document.getElementById('profileName').innerHTML = `<span style="color:${profile.color}">${esc(profile.name)}</span> — ${esc(profile.description||'')}`;
+    const el = document.getElementById('profileContent');
+    const domainStats = (profile.domain_stats||[]).map(s =>
+        `<div class="lb-row" style="padding:4px 6px"><div class="lb-info"><div class="lb-name">${esc(s.domain)}</div><div class="lb-domain">${s.total_ratings} ratings</div></div><div class="lb-score">★ ${(s.avg_rating||0).toFixed(1)}</div></div>`
+    ).join('') || '<div class="card-meta">No domain stats yet</div>';
+
+    const learned = (profile.learned_capabilities||[]).map(c =>
+        `<span class="pill" style="background:rgba(129,199,132,0.2);color:var(--green)">${esc(c.capability)} (${c.tasks_completed})</span>`
+    ).join('') || '<span class="card-meta">None yet</span>';
+
+    const ratingsReceived = (profile.ratings_received||[]).slice(0,10).map(r =>
+        `<div class="event-row"><span class="event-time">★${r.score}</span><span class="event-text">${esc((r.feedback||'').slice(0,100))}</span></div>`
+    ).join('') || '<div class="card-meta">No ratings yet</div>';
+
+    const recentTasks = (profile.tasks_assigned||[]).slice(0,8).map(t =>
+        `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid rgba(42,53,72,0.3)"><span class="badge badge-${t.status}" style="margin-right:4px">${t.status}</span>${esc(t.title.slice(0,40))}</div>`
+    ).join('') || '<div class="card-meta">No tasks</div>';
+
+    el.innerHTML = `
+        <div class="card"><div class="section-title" style="margin-bottom:4px">Capabilities</div>
+            <div class="pills">${(profile.capabilities||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</div>
+            <div class="section-title" style="margin-top:8px;margin-bottom:4px">Learned from Experience</div>
+            <div class="pills">${learned}</div>
+        </div>
+        <div class="card"><div class="section-title" style="margin-bottom:4px">Domain Performance</div>${domainStats}</div>
+        <div class="card"><div class="section-title" style="margin-bottom:4px">Recent Ratings Received</div>${ratingsReceived}</div>
+        <div class="card"><div class="section-title" style="margin-bottom:4px">Recent Tasks</div>${recentTasks}</div>
+    `;
+    document.getElementById('profileOverlay').style.display = 'block';
+}
+
+function hideProfile() {
+    document.getElementById('profileOverlay').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+async function refresh() {
+    await Promise.all([loadAgents(), loadTasks(), loadStats(), loadLeaderboard(), loadEvents(), loadChampions(), loadTimeline()]);
+}
+
+refresh();
+connectSSE();
+render();
+</script>
+</body>
+</html>

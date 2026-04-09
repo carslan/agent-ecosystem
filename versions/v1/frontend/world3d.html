@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Settlement — 3D World</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif}
+canvas{display:block}
+.hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none}
+.hud-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:rgba(10,14,23,0.8);backdrop-filter:blur(8px);border-bottom:1px solid rgba(79,195,247,0.15);pointer-events:auto}
+.hud-title{font-size:15px;font-weight:700;color:#4FC3F7;letter-spacing:2px;text-transform:uppercase}
+.hud-stats{display:flex;gap:14px}
+.hud-stat{font-size:11px;color:#94a3b8}
+.hud-stat span{color:#4FC3F7;font-weight:600}
+.hud-link{font-size:10px;color:#4FC3F7;text-decoration:none;padding:4px 10px;border:1px solid rgba(79,195,247,0.3);border-radius:4px}
+.hud-link:hover{background:rgba(79,195,247,0.1)}
+.feed{position:fixed;bottom:0;left:0;width:380px;z-index:10;pointer-events:none}
+.feed-inner{padding:8px 16px;background:linear-gradient(transparent,rgba(10,14,23,0.95) 30%);max-height:160px;overflow:hidden}
+.feed-row{font-size:10px;color:#94a3b8;padding:2px 0;display:flex;gap:6px;align-items:baseline}
+.feed-emoji{font-size:13px}
+.feed-text{flex:1}
+.legend{position:fixed;bottom:10px;right:16px;z-index:10;pointer-events:none;font-size:9px;color:#556;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="hud"><div class="hud-bar">
+    <div class="hud-title">Agent Settlement</div>
+    <div class="hud-stats">
+        <div class="hud-stat">Population <span id="s-pop">0</span></div>
+        <div class="hud-stat">Tasks <span id="s-tasks">0</span></div>
+        <div class="hud-stat">Completed <span id="s-done">0</span></div>
+        <div class="hud-stat">Rating <span id="s-avg">0</span></div>
+    </div>
+    <a href="/" class="hud-link">Dashboard</a>
+</div></div>
+<div class="feed"><div class="feed-inner" id="feed"></div></div>
+<div class="legend">
+    Scroll to zoom &bull; Drag to orbit &bull; Right-drag to pan
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="module">
+import*as THREE from'three';
+import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+
+// ════════════════════════════════════════════
+// SCENE
+// ════════════════════════════════════════════
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x1a2a3a,0.012);
+scene.background=new THREE.Color(0x0d1a2d);
+
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,500);
+camera.position.set(0,30,45);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.1;
+document.body.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=0.06;
+controls.maxPolarAngle=Math.PI/2.15;controls.minDistance=10;controls.maxDistance=80;
+controls.target.set(0,1,0);
+
+window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+});
+
+// ════════════════════════════════════════════
+// LIGHTING
+// ════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0x6688aa,0.5));
+const sun=new THREE.DirectionalLight(0xffeedd,0.9);
+sun.position.set(30,50,20);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=1;sun.shadow.camera.far=120;
+sun.shadow.camera.left=-60;sun.shadow.camera.right=60;
+sun.shadow.camera.top=60;sun.shadow.camera.bottom=-60;
+scene.add(sun);
+// warm accent lights
+const warmL=new THREE.PointLight(0xffaa44,0.3,50);warmL.position.set(-10,8,10);scene.add(warmL);
+const coolL=new THREE.PointLight(0x4488ff,0.2,50);coolL.position.set(15,8,-10);scene.add(coolL);
+
+// ════════════════════════════════════════════
+// STARS
+// ════════════════════════════════════════════
+const stP=[];for(let i=0;i<1500;i++)stP.push((Math.random()-.5)*300,50+Math.random()*100,(Math.random()-.5)*300);
+const stG=new THREE.BufferGeometry();stG.setAttribute('position',new THREE.Float32BufferAttribute(stP,3));
+scene.add(new THREE.Points(stG,new THREE.PointsMaterial({color:0xffffff,size:0.25,transparent:true,opacity:0.7})));
+
+// ════════════════════════════════════════════
+// GROUND
+// ════════════════════════════════════════════
+const groundG=new THREE.CircleGeometry(80,64);
+const groundM=new THREE.MeshStandardMaterial({color:0x2d5a3a,roughness:0.9});
+const ground=new THREE.Mesh(groundG,groundM);
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;
+scene.add(ground);
+
+// Paths (light stone roads)
+function makePath(points,width=1.2){
+    const shape=new THREE.Shape();
+    points.forEach((p,i)=>{
+        const geo=new THREE.PlaneGeometry(width,1);
+        const mat=new THREE.MeshStandardMaterial({color:0x8a8070,roughness:0.95});
+        const mesh=new THREE.Mesh(geo,mat);
+        mesh.rotation.x=-Math.PI/2;mesh.position.set(p[0],0.02,p[1]);
+        if(i<points.length-1){
+            const dx=points[i+1][0]-p[0],dz=points[i+1][1]-p[1];
+            mesh.rotation.z=Math.atan2(dx,dz);
+            mesh.scale.y=Math.sqrt(dx*dx+dz*dz);
+        }
+        mesh.receiveShadow=true;scene.add(mesh);
+    });
+}
+// Central plaza
+const plazaG=new THREE.CircleGeometry(5,32);
+const plazaM=new THREE.MeshStandardMaterial({color:0x9a9080,roughness:0.85});
+const plaza=new THREE.Mesh(plazaG,plazaM);
+plaza.rotation.x=-Math.PI/2;plaza.position.y=0.03;plaza.receiveShadow=true;
+scene.add(plaza);
+
+// Fountain in center
+const fBase=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.4,0.5,16),new THREE.MeshStandardMaterial({color:0x778899}));
+fBase.position.y=0.25;fBase.castShadow=true;scene.add(fBase);
+const fPillar=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,1.5,8),new THREE.MeshStandardMaterial({color:0x889aaa}));
+fPillar.position.y=1;scene.add(fPillar);
+const fTop=new THREE.Mesh(new THREE.SphereGeometry(0.3,12,12),new THREE.MeshStandardMaterial({color:0x4FC3F7,emissive:0x4FC3F7,emissiveIntensity:0.5}));
+fTop.position.y=1.8;scene.add(fTop);
+
+// ════════════════════════════════════════════
+// BUILDINGS — one per domain
+// ════════════════════════════════════════════
+const BUILDINGS={};
+const BLDG_DEFS={
+    research:{name:'Research Library',color:0x1565C0,icon:'\u{1F4DA}',pos:[-14,0,-10]},
+    strategy:{name:'Strategy HQ',color:0x0D47A1,icon:'\u{1F3AF}',pos:[-10,0,-16]},
+    engineering:{name:'Engineering Workshop',color:0xF57C00,icon:'\u{2699}\u{FE0F}',pos:[14,0,-10]},
+    devops:{name:'Launch Pad',color:0xE65100,icon:'\u{1F680}',pos:[18,0,0]},
+    data:{name:'Data Observatory',color:0x7B1FA2,icon:'\u{1F4CA}',pos:[-16,0,6]},
+    finance:{name:'Finance Tower',color:0x6A1B9A,icon:'\u{1F4B0}',pos:[-10,0,14]},
+    nlp:{name:'Translation Bureau',color:0x00897B,icon:'\u{1F4AC}',pos:[10,0,14]},
+    content:{name:'Content Studio',color:0x00695C,icon:'\u{270D}\u{FE0F}',pos:[6,0,18]},
+    security:{name:'Security Fortress',color:0xC62828,icon:'\u{1F6E1}\u{FE0F}',pos:[14,0,8]},
+    compliance:{name:'Compliance Office',color:0xB71C1C,icon:'\u{2696}\u{FE0F}',pos:[10,0,-16]},
+    design:{name:'Art Studio',color:0xAD1457,icon:'\u{1F3A8}',pos:[-6,0,18]},
+    frontend:{name:'UI Lab',color:0x880E4F,icon:'\u{1F5BC}\u{FE0F}',pos:[-18,0,0]},
+    infrastructure:{name:'Infrastructure Depot',color:0x33691E,icon:'\u{1F3D7}\u{FE0F}',pos:[0,0,-18]},
+};
+
+function buildBuilding(domain,def){
+    const g=new THREE.Group();
+    const [bx,,bz]=def.pos;
+    g.position.set(bx,0,bz);
+
+    const c=new THREE.Color(def.color);
+    // Main structure
+    const wallG=new THREE.BoxGeometry(4,3,3);
+    const wallM=new THREE.MeshStandardMaterial({color:c,roughness:0.7});
+    const wall=new THREE.Mesh(wallG,wallM);wall.position.y=1.5;wall.castShadow=true;wall.receiveShadow=true;
+    g.add(wall);
+
+    // Roof
+    const roofG=new THREE.ConeGeometry(3.5,1.5,4);
+    const roofM=new THREE.MeshStandardMaterial({color:c.clone().multiplyScalar(0.6),roughness:0.8});
+    const roof=new THREE.Mesh(roofG,roofM);roof.position.y=3.75;roof.rotation.y=Math.PI/4;roof.castShadow=true;
+    g.add(roof);
+
+    // Door
+    const doorG=new THREE.PlaneGeometry(0.8,1.5);
+    const doorM=new THREE.MeshStandardMaterial({color:0x3a2a1a});
+    const door=new THREE.Mesh(doorG,doorM);door.position.set(0,0.75,1.51);
+    g.add(door);
+
+    // Windows (2)
+    const winM=new THREE.MeshStandardMaterial({color:0xffeebb,emissive:0xffdd88,emissiveIntensity:0.4});
+    [[-1.2,2],[1.2,2]].forEach(([wx,wy])=>{
+        const w=new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.5),winM);
+        w.position.set(wx,wy,1.51);g.add(w);
+    });
+
+    // Sign above door
+    const signG=new THREE.PlaneGeometry(3,0.6);
+    const signCanvas=document.createElement('canvas');signCanvas.width=256;signCanvas.height=48;
+    const sCtx=signCanvas.getContext('2d');
+    sCtx.fillStyle='rgba(0,0,0,0.7)';sCtx.fillRect(0,0,256,48);
+    sCtx.fillStyle='#fff';sCtx.font='bold 18px system-ui';sCtx.textAlign='center';
+    sCtx.fillText(def.icon+' '+def.name,128,32);
+    const signTex=new THREE.CanvasTexture(signCanvas);
+    const signMat=new THREE.MeshBasicMaterial({map:signTex,transparent:true});
+    const sign=new THREE.Mesh(signG,signMat);sign.position.set(0,3.15,1.52);
+    g.add(sign);
+
+    // Warm light at door
+    const dLight=new THREE.PointLight(0xffcc66,0.4,8);dLight.position.set(0,2,2.5);g.add(dLight);
+
+    // Queue markers (3 spots in front of door)
+    g.userData={domain,queueSpots:[
+        new THREE.Vector3(bx,0,bz+3.5),
+        new THREE.Vector3(bx,0,bz+5),
+        new THREE.Vector3(bx,0,bz+6.5),
+    ],doorPos:new THREE.Vector3(bx,0,bz+2)};
+
+    scene.add(g);
+    BUILDINGS[domain]=g;
+}
+
+Object.entries(BLDG_DEFS).forEach(([d,def])=>buildBuilding(d,def));
+
+// Trees
+function addTree(x,z,scale=1){
+    const g=new THREE.Group();
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.1*scale,0.15*scale,1*scale,6),new THREE.MeshStandardMaterial({color:0x5a3a1a}));
+    trunk.position.y=0.5*scale;trunk.castShadow=true;g.add(trunk);
+    const leaves=new THREE.Mesh(new THREE.SphereGeometry(0.6*scale,8,6),new THREE.MeshStandardMaterial({color:0x2a6a3a,roughness:0.9}));
+    leaves.position.y=1.2*scale;leaves.castShadow=true;g.add(leaves);
+    g.position.set(x,0,z);scene.add(g);
+}
+[[-8,-8],[8,-8],[-8,8],[8,8],[-5,0],[5,0],[0,-8],[0,8],[-12,-4],[12,-4],[-12,4],[12,4],[-4,12],[4,12],[-4,-12],[4,-12]].forEach(([x,z])=>addTree(x+Math.random()*2-1,z+Math.random()*2-1,0.7+Math.random()*0.6));
+
+// Benches
+function addBench(x,z,ry=0){
+    const g=new THREE.Group();
+    const seat=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.1,0.4),new THREE.MeshStandardMaterial({color:0x6a4a2a}));
+    seat.position.y=0.35;g.add(seat);
+    const back=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.4,0.08),new THREE.MeshStandardMaterial({color:0x6a4a2a}));
+    back.position.set(0,0.55,-0.16);g.add(back);
+    [[-0.5,0],[0.5,0]].forEach(([lx])=>{
+        const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.3,0.3),new THREE.MeshStandardMaterial({color:0x444}));
+        leg.position.set(lx,0.15,0);g.add(leg);
+    });
+    g.position.set(x,0,z);g.rotation.y=ry;scene.add(g);
+}
+addBench(-3,3,0.3);addBench(3,-3,-0.3);addBench(6,6,Math.PI/4);addBench(-6,-6,-Math.PI/4);
+
+// Street lamps
+function addLamp(x,z){
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,2.5,6),new THREE.MeshStandardMaterial({color:0x555}));
+    pole.position.set(x,1.25,z);pole.castShadow=true;scene.add(pole);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),new THREE.MeshStandardMaterial({color:0xffeecc,emissive:0xffdd88,emissiveIntensity:1}));
+    bulb.position.set(x,2.6,z);scene.add(bulb);
+    const light=new THREE.PointLight(0xffdd88,0.3,10);light.position.set(x,2.6,z);scene.add(light);
+}
+[[-6,0],[6,0],[0,6],[0,-6],[-4,-4],[4,4]].forEach(([x,z])=>addLamp(x,z));
+
+// ════════════════════════════════════════════
+// 3D PERSON
+// ════════════════════════════════════════════
+const SKIN=0xF5CBA7;
+const personCache={};
+
+function createPerson(agent){
+    const color=new THREE.Color(agent.color);
+    const g=new THREE.Group();
+    // Torso
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.6,0.3),new THREE.MeshStandardMaterial({color}));
+    torso.position.y=1.0;torso.castShadow=true;g.add(torso);
+    // Head
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,10),new THREE.MeshStandardMaterial({color:SKIN}));
+    head.position.y=1.55;head.castShadow=true;g.add(head);
+    // Hair
+    const hair=new THREE.Mesh(new THREE.SphereGeometry(0.23,10,5,0,Math.PI*2,0,Math.PI*0.45),new THREE.MeshStandardMaterial({color}));
+    hair.position.y=1.62;g.add(hair);
+    // Eyes
+    const eyeG=new THREE.SphereGeometry(0.03,6,6);const eyeM=new THREE.MeshBasicMaterial({color:0x222});
+    const eL=new THREE.Mesh(eyeG,eyeM);eL.position.set(-0.07,1.57,0.19);g.add(eL);
+    const eR=new THREE.Mesh(eyeG,eyeM);eR.position.set(0.07,1.57,0.19);g.add(eR);
+    // Arms
+    const armG=new THREE.BoxGeometry(0.14,0.5,0.14);const armM=new THREE.MeshStandardMaterial({color});
+    const armL=new THREE.Mesh(armG,armM);armL.position.set(-0.37,0.95,0);g.add(armL);
+    const armR=new THREE.Mesh(armG,armM);armR.position.set(0.37,0.95,0);g.add(armR);
+    // Legs
+    const legG=new THREE.BoxGeometry(0.16,0.5,0.16);const legM=new THREE.MeshStandardMaterial({color:0x333845});
+    const legL=new THREE.Mesh(legG,legM);legL.position.set(-0.12,0.35,0);g.add(legL);
+    const legR=new THREE.Mesh(legG,legM);legR.position.set(0.12,0.35,0);g.add(legR);
+
+    // Name floating label (canvas texture on sprite)
+    const lblCanvas=document.createElement('canvas');lblCanvas.width=128;lblCanvas.height=32;
+    const lCtx=lblCanvas.getContext('2d');
+    lCtx.fillStyle='rgba(10,14,23,0.85)';lCtx.roundRect(0,4,128,24,6);lCtx.fill();
+    lCtx.strokeStyle=agent.color+'66';lCtx.lineWidth=1;lCtx.roundRect(0,4,128,24,6);lCtx.stroke();
+    lCtx.fillStyle='#fff';lCtx.font='bold 13px system-ui';lCtx.textAlign='center';
+    lCtx.fillText(agent.name,64,22);
+    const lblTex=new THREE.CanvasTexture(lblCanvas);
+    const lblMat=new THREE.SpriteMaterial({map:lblTex,transparent:true,depthWrite:false});
+    const lblSprite=new THREE.Sprite(lblMat);
+    lblSprite.scale.set(1.6,0.4,1);lblSprite.position.y=2.0;g.add(lblSprite);
+
+    // Emoji sprite (hidden by default)
+    const emojiCanvas=document.createElement('canvas');emojiCanvas.width=64;emojiCanvas.height=64;
+    const emojiTex=new THREE.CanvasTexture(emojiCanvas);
+    const emojiMat=new THREE.SpriteMaterial({map:emojiTex,transparent:true,depthWrite:false});
+    const emojiSprite=new THREE.Sprite(emojiMat);
+    emojiSprite.scale.set(0.8,0.8,1);emojiSprite.position.y=2.5;emojiSprite.visible=false;g.add(emojiSprite);
+
+    g.userData={
+        id:agent.id,torso,head,armL,armR,legL,legR,emojiSprite,emojiCanvas,emojiTex,lblSprite,
+        targetX:0,targetZ:0,
+        state:'idle',  // idle, walking, queuing, working, handshaking, rejected, celebrating
+        stateTimer:0,
+        walkSpeed:2+Math.random()*1,
+        homeX:0,homeZ:0,
+    };
+
+    scene.add(g);
+    return g;
+}
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+const S={
+    agents:[],tasks:[],stats:{},
+    agentMap:{},
+    meshes:{},      // id -> THREE.Group
+    champions:{},
+    beams:[],
+};
+
+// ════════════════════════════════════════════
+// EMOJI POPUP
+// ════════════════════════════════════════════
+function showEmoji(agentId,emoji){
+    const m=S.meshes[agentId];if(!m)return;
+    const ud=m.userData;
+    const ctx=ud.emojiCanvas.getContext('2d');
+    ctx.clearRect(0,0,64,64);
+    ctx.font='48px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(emoji,32,32);
+    ud.emojiTex.needsUpdate=true;
+    ud.emojiSprite.visible=true;
+    ud.emojiSprite.position.y=2.5;
+    ud._emojiTimer=performance.now();
+}
+
+// ════════════════════════════════════════════
+// LAYOUT AGENTS
+// ════════════════════════════════════════════
+function layoutAgents(){
+    S.agents.forEach(a=>{
+        if(!S.meshes[a.id]){
+            const m=createPerson(a);
+            S.meshes[a.id]=m;
+        }
+        const m=S.meshes[a.id];
+        const tag=(a.domain_tags||[])[0];
+        const bldg=BUILDINGS[tag];
+        if(bldg){
+            const bp=bldg.position;
+            const h=hash(a.id);
+            const angle=(h%360)*Math.PI/180;
+            const r=4+((h>>8)%3);
+            m.userData.homeX=bp.x+Math.cos(angle)*r;
+            m.userData.homeZ=bp.z+Math.sin(angle)*r;
+            if(m.userData.state==='idle'){
+                m.userData.targetX=m.userData.homeX;
+                m.userData.targetZ=m.userData.homeZ;
+            }
+            if(!m.userData._placed){
+                m.position.set(m.userData.homeX,0,m.userData.homeZ);
+                m.userData._placed=true;
+            }
+        }
+    });
+}
+
+function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h);}
+
+// ════════════════════════════════════════════
+// BEAMS (task arcs)
+// ════════════════════════════════════════════
+function updateBeams(){
+    S.beams.forEach(b=>{scene.remove(b.line);scene.remove(b.particle);b.line.geometry.dispose();b.particle.geometry.dispose();});
+    S.beams=[];
+    S.tasks.forEach(t=>{
+        if(!['accepted','in_progress','delivered'].includes(t.status))return;
+        if(!t.assignee_id)return;
+        const fm=S.meshes[t.requester_id],tm=S.meshes[t.assignee_id];
+        if(!fm||!tm)return;
+        const c=t.status==='delivered'?0x81C784:t.status==='in_progress'?0xFFB74D:0x4FC3F7;
+        const curve=new THREE.QuadraticBezierCurve3(
+            fm.position.clone().add(new THREE.Vector3(0,2,0)),
+            new THREE.Vector3((fm.position.x+tm.position.x)/2,6,(fm.position.z+tm.position.z)/2),
+            tm.position.clone().add(new THREE.Vector3(0,2,0))
+        );
+        const pts=curve.getPoints(24);
+        const geo=new THREE.BufferGeometry().setFromPoints(pts);
+        const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:c,transparent:true,opacity:0.4}));
+        scene.add(line);
+        const particle=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8),new THREE.MeshBasicMaterial({color:c}));
+        scene.add(particle);
+        S.beams.push({line,particle,curve,born:performance.now(),status:t.status});
+    });
+}
+
+// ════════════════════════════════════════════
+// AGENT BEHAVIOR ANIMATION
+// ════════════════════════════════════════════
+function animateAgents(t,dt){
+    Object.entries(S.meshes).forEach(([id,m])=>{
+        const ud=m.userData;
+        const agent=S.agentMap[id];
+        if(!agent)return;
+
+        // Emoji fade
+        if(ud._emojiTimer&&t-ud._emojiTimer>2500){
+            ud.emojiSprite.visible=false;ud._emojiTimer=0;
+        }
+        if(ud.emojiSprite.visible){
+            ud.emojiSprite.position.y=2.5+Math.sin(t*0.003)*0.15;
+        }
+
+        // Movement
+        const dx=ud.targetX-m.position.x;
+        const dz=ud.targetZ-m.position.z;
+        const dist=Math.sqrt(dx*dx+dz*dz);
+        const walking=dist>0.2;
+
+        if(walking){
+            const speed=Math.min(dist,ud.walkSpeed*dt);
+            m.position.x+=dx/dist*speed;
+            m.position.z+=dz/dist*speed;
+            m.rotation.y=Math.atan2(dx,dz);
+            // Walk cycle
+            const cycle=t*0.008;
+            ud.legL.position.y=0.35;ud.legL.position.z=Math.sin(cycle)*0.15;
+            ud.legR.position.y=0.35;ud.legR.position.z=-Math.sin(cycle)*0.15;
+            ud.armL.rotation.x=Math.sin(cycle)*0.5;
+            ud.armR.rotation.x=-Math.sin(cycle)*0.5;
+            ud.torso.position.y=1.0+Math.abs(Math.sin(cycle*2))*0.03;
+            ud.head.position.y=1.55+Math.abs(Math.sin(cycle*2))*0.03;
+        } else {
+            // Idle animation
+            ud.legL.position.z=0;ud.legR.position.z=0;
+            ud.armL.rotation.x=0;ud.armR.rotation.x=0;
+            ud.torso.position.y=1.0+Math.sin(t*0.001+hash(id))*0.02;
+            ud.head.position.y=1.55+Math.sin(t*0.001+hash(id))*0.02;
+        }
+
+        // State-specific animations
+        if(ud.state==='handshaking'){
+            // Both arms forward
+            ud.armR.rotation.x=-0.8;ud.armR.rotation.z=-0.3;
+            if(t-ud.stateTimer>2000){
+                ud.state='idle';ud.targetX=ud.homeX;ud.targetZ=ud.homeZ;
+            }
+        }
+        if(ud.state==='rejected'){
+            // Head shake
+            m.rotation.y+=Math.sin(t*0.02)*0.1;
+            ud.armL.rotation.z=0.3;ud.armR.rotation.z=-0.3;
+            if(t-ud.stateTimer>1500){
+                ud.state='idle';ud.targetX=ud.homeX;ud.targetZ=ud.homeZ;
+            }
+        }
+        if(ud.state==='celebrating'){
+            // Arms up!
+            ud.armL.rotation.x=-2.5;ud.armR.rotation.x=-2.5;
+            ud.torso.position.y=1.0+Math.abs(Math.sin(t*0.01))*0.15; // jump
+            if(t-ud.stateTimer>2000){
+                ud.state='idle';ud.targetX=ud.homeX;ud.targetZ=ud.homeZ;
+            }
+        }
+        if(ud.state==='working'){
+            // Typing motion
+            ud.armL.rotation.x=-0.5+Math.sin(t*0.015)*0.3;
+            ud.armR.rotation.x=-0.5-Math.sin(t*0.015)*0.3;
+        }
+        if(ud.state==='queuing'){
+            // Stand still, slight sway
+            ud.torso.position.y=1.0+Math.sin(t*0.0015+hash(id)*0.1)*0.015;
+        }
+
+        // Offline: slumped
+        if(agent.status==='offline'){
+            ud.torso.material.color.set(0x444);
+            ud.head.material.color.set(0x888);
+        }
+    });
+}
+
+// ════════════════════════════════════════════
+// API + SSE
+// ════════════════════════════════════════════
+async function fetchJ(u){return(await fetch(u)).json();}
+
+async function loadAll(){
+    const[agents,tasks,stats,champs]=await Promise.all([
+        fetchJ('/api/agents'),fetchJ('/api/tasks?limit=100'),fetchJ('/api/stats'),fetchJ('/api/champions')
+    ]);
+    S.agents=agents;S.tasks=tasks;S.stats=stats;
+    S.agentMap={};agents.forEach(a=>S.agentMap[a.id]=a);
+    S.champions={};champs.forEach(c=>S.champions[c.domain]=c.agent_id);
+    document.getElementById('s-pop').textContent=stats.total_agents||0;
+    document.getElementById('s-tasks').textContent=stats.total_tasks||0;
+    document.getElementById('s-done').textContent=stats.tasks_rated||0;
+    document.getElementById('s-avg').textContent=(stats.avg_rating||0).toFixed(1);
+    layoutAgents();updateBeams();
+    // Update champion labels
+    agents.forEach(a=>{
+        const m=S.meshes[a.id];if(!m)return;
+        if(Object.values(S.champions).includes(a.id)){
+            // Add crown
+            if(!m.userData._crown){
+                const crownCanvas=document.createElement('canvas');crownCanvas.width=64;crownCanvas.height=64;
+                const cCtx=crownCanvas.getContext('2d');cCtx.font='48px system-ui';cCtx.textAlign='center';
+                cCtx.fillText('\u{1F451}',32,48);
+                const crownTex=new THREE.CanvasTexture(crownCanvas);
+                const crownSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:crownTex,transparent:true,depthWrite:false}));
+                crownSprite.scale.set(0.6,0.6,1);crownSprite.position.y=1.95;
+                m.add(crownSprite);m.userData._crown=crownSprite;
+            }
+        }
+    });
+}
+
+const EMOJIS={
+    agent_registered:'\u{1F44B}',task_requested:'\u{1F4CB}',task_evaluating:'\u{1F914}',
+    task_accepted:'\u{1F91D}',task_rejected:'\u{274C}',task_in_progress:'\u{2699}\u{FE0F}',
+    task_delivered:'\u{1F4E6}',task_rated:'\u{2B50}',message_sent:'\u{1F4AC}',
+    capability_learned:'\u{1F9E0}',task_cancelled:'\u{1F6AB}',subtask_created:'\u{1F4CE}',
+};
+
+let lastEid=0;
+function connectSSE(){
+    const es=new EventSource('/api/events/stream?last_event_id='+lastEid);
+    Object.keys(EMOJIS).concat(['agent_online','agent_offline','agent_busy','agent_deregistered']).forEach(type=>{
+        es.addEventListener(type,e=>{
+            const d=JSON.parse(e.data);lastEid=d.id;
+            handleEv(type,d);
+        });
+    });
+    es.onerror=()=>{es.close();setTimeout(connectSSE,3000);};
+}
+
+function handleEv(type,data){
+    const p=data.payload||{};
+    const t=performance.now();
+
+    // Show emoji
+    if(data.agent_id&&EMOJIS[type])showEmoji(data.agent_id,EMOJIS[type]);
+
+    const m=data.agent_id?S.meshes[data.agent_id]:null;
+    const ud=m?m.userData:null;
+
+    if(type==='task_requested'){
+        // Requester walks toward target building
+        if(ud){
+            const task=S.tasks.find(tk=>tk.id===data.task_id)||{};
+            const cap=p.capability||(task.required_capability);
+            // Find a building that matches the requested domain
+            const targetDomain=Object.keys(BUILDINGS).find(d=>{
+                const bdef=BLDG_DEFS[d];
+                return bdef&&p.domain===d;
+            })||Object.keys(BUILDINGS)[0];
+            const bldg=BUILDINGS[targetDomain];
+            if(bldg&&bldg.userData.queueSpots){
+                const spot=bldg.userData.queueSpots[Math.floor(Math.random()*3)];
+                ud.targetX=spot.x;ud.targetZ=spot.z;
+                ud.state='queuing';ud.stateTimer=t;
+                // Return after 10s
+                setTimeout(()=>{if(ud.state==='queuing'){ud.state='idle';ud.targetX=ud.homeX;ud.targetZ=ud.homeZ;}},10000);
+            }
+        }
+        loadAll();
+    }
+    else if(type==='task_evaluating'){
+        // Evaluator scratches head (thinking pose)
+        if(ud){ud.state='queuing';ud.stateTimer=t;}
+        loadAll();
+    }
+    else if(type==='task_accepted'){
+        // Both agents walk toward each other, handshake
+        const task=S.tasks.find(tk=>tk.id===data.task_id);
+        if(task){
+            const fm=S.meshes[task.requester_id],tm=S.meshes[data.agent_id];
+            if(fm&&tm){
+                const mx=(fm.position.x+tm.position.x)/2;
+                const mz=(fm.position.z+tm.position.z)/2;
+                fm.userData.targetX=mx-0.6;fm.userData.targetZ=mz;
+                tm.userData.targetX=mx+0.6;tm.userData.targetZ=mz;
+                fm.userData.state='handshaking';fm.userData.stateTimer=t;
+                tm.userData.state='handshaking';tm.userData.stateTimer=t;
+            }
+        }
+        loadAll();
+    }
+    else if(type==='task_rejected'){
+        // Rejector shakes head, walks away
+        if(ud){ud.state='rejected';ud.stateTimer=t;}
+        loadAll();
+    }
+    else if(type==='task_in_progress'){
+        // Worker goes to building door, starts working animation
+        if(ud){
+            const task=S.tasks.find(tk=>tk.assignee_id===data.agent_id&&tk.status==='in_progress');
+            const domain=task?task.domain:null;
+            const bldg=domain?BUILDINGS[domain]:null;
+            if(bldg){
+                const dp=bldg.userData.doorPos;
+                ud.targetX=dp.x;ud.targetZ=dp.z;
+            }
+            ud.state='working';ud.stateTimer=t;
+        }
+        loadAll();
+    }
+    else if(type==='task_delivered'){
+        // Deliverer walks to requester with package
+        if(ud){ud.state='idle';ud.targetX=ud.homeX;ud.targetZ=ud.homeZ;}
+        loadAll();
+    }
+    else if(type==='task_rated'){
+        // Rated agent celebrates!
+        if(ud){ud.state='celebrating';ud.stateTimer=t;}
+        loadAll();
+    }
+    else if(type==='capability_learned'){
+        if(ud){ud.state='celebrating';ud.stateTimer=t;}
+        loadAll();
+    }
+    else if(type==='message_sent'){
+        // Show chat emoji, face toward recipient
+        if(m&&p.to){
+            const tm=S.meshes[p.to];
+            if(tm){
+                const dx=tm.position.x-m.position.x;
+                const dz=tm.position.z-m.position.z;
+                m.rotation.y=Math.atan2(dx,dz);
+            }
+        }
+    }
+    else{
+        loadAll();
+    }
+
+    // Feed
+    const feed=document.getElementById('feed');
+    const row=document.createElement('div');row.className='feed-row';
+    const emoji=EMOJIS[type]||'\u{1F4CC}';
+    let text=type.replace(/_/g,' ');
+    if(p.agent_name||p.name)text+=' \u2014 '+(p.agent_name||p.name);
+    if(p.title)text+=': '+p.title.slice(0,30);
+    if(p.score)text+=' \u2B50'+p.score;
+    if(p.reason)text+=' ('+p.reason.slice(0,30)+')';
+    row.innerHTML='<span class="feed-emoji">'+emoji+'</span><span class="feed-text">'+text+'</span>';
+    feed.prepend(row);
+    while(feed.children.length>12)feed.lastChild.remove();
+}
+
+// ════════════════════════════════════════════
+// FOUNTAIN PARTICLES
+// ════════════════════════════════════════════
+const fParticles=[];
+for(let i=0;i<30;i++){
+    const p=new THREE.Mesh(
+        new THREE.SphereGeometry(0.04,4,4),
+        new THREE.MeshBasicMaterial({color:0x88ccff,transparent:true,opacity:0.6})
+    );
+    p.userData={vy:1+Math.random()*2,phase:Math.random()*Math.PI*2};
+    p.position.set(0,1.8,0);
+    scene.add(p);fParticles.push(p);
+}
+
+// ════════════════════════════════════════════
+// RENDER LOOP
+// ════════════════════════════════════════════
+const clock=new THREE.Clock();
+function animate(){
+    requestAnimationFrame(animate);
+    const dt=clock.getDelta();
+    const t=performance.now();
+    controls.update();
+
+    animateAgents(t,dt);
+
+    // Beam particles
+    S.beams.forEach(b=>{
+        const p=((t-b.born)/3000)%1;
+        const pp=b.status==='delivered'?1-p:p;
+        b.particle.position.copy(b.curve.getPoint(pp));
+        b.particle.scale.setScalar(0.8+Math.sin(t*0.01)*0.3);
+    });
+
+    // Fountain
+    fParticles.forEach(fp=>{
+        fp.userData.phase+=dt*3;
+        const ph=fp.userData.phase%3;
+        if(ph<0.01){fp.position.set((Math.random()-0.5)*0.3,1.8,(Math.random()-0.5)*0.3);}
+        fp.position.y=1.8+Math.sin(ph/3*Math.PI)*fp.userData.vy*0.5;
+        fp.position.x+=(Math.random()-0.5)*0.02;
+        fp.position.z+=(Math.random()-0.5)*0.02;
+        fp.material.opacity=ph<2.5?0.6:0.6*(3-ph)/0.5;
+    });
+
+    renderer.render(scene,camera);
+}
+
+loadAll();connectSSE();animate();
+</script>
+</body>
+</html>
